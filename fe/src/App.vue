@@ -9,19 +9,36 @@
 </template>
 
 <script setup>
-import { onMounted, ref, watch } from 'vue';
+import { onMounted, onUnmounted, ref, watch } from 'vue';
 // import mediasoup from 'mediasoup'
 const socket = new WebSocket('ws://localhost:8080');
 let imageEl = ref('')
+let interval = ref('')
 const textArea = ref('')
+let count = 0;
 const clicked = () => {
   socket.send(textArea.value)
 }
 
-watch(imageEl,  (nv,ov) => {
-  console.log('this is nv and ov ' , nv, ov );
-  socket.send(`data ${nv}`)
+watch(imageEl,  () => {
+  console.log('this is nv and ov ' );
+  count +=1
+  console.log(count);
+  socket.send(`${imageEl.value}`)
 })
+
+const getImage = (track) => {
+  console.log('this is the get image thing');
+  let imageCapture = new ImageCapture(track);
+  imageCapture.takePhoto().then(img => {
+    let reader = new FileReader();
+    reader.readAsDataURL(img);
+    reader.onloadend = function () {
+      let base64data = reader.result;
+      imageEl.value = base64data;
+    };
+  });
+}
 // let chunks = []
 onMounted(() => {
   socket.onmessage = ({data}) => {
@@ -31,18 +48,16 @@ onMounted(() => {
       .then((mediaStream) => {
         document.querySelector('video').srcObject = mediaStream
         const track = mediaStream.getVideoTracks()[0];
-        let imageCapture = new ImageCapture(track);
-        // console.log('image capture is ' , imageCapture.grabFrame());
-        imageCapture.takePhoto().then(img => {
-            let reader = new FileReader();
-  reader.readAsDataURL(img);
-  reader.onloadend = function () {
-    let base64data = reader.result;
-    imageEl.value = base64data;
-    // socket.send('data ' , reader.result)
-    // console.log("this is the base 64 data ", base64data);
-  };
-        });
+        interval = setInterval(() => getImage(track),500)
+        // let imageCapture = new ImageCapture(track);
+        // imageCapture.takePhoto().then(img => {
+        //     let reader = new FileReader();
+        //     reader.readAsDataURL(img);
+        //     reader.onloadend = function () {
+        //       let base64data = reader.result;
+        //       imageEl.value = base64data;
+        //     };
+        // });
 
       })
       .catch((error) => console.error(error));
@@ -69,6 +84,10 @@ onMounted(() => {
       //     socket.send(e.streams[0]);
       //   };
       // };
+  onUnmounted(()=>{
+    clearInterval(interval.value)
+  })
+
 })
 </script>
 
